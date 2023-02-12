@@ -2,7 +2,12 @@ v: 0
 icon: ./client/images/logo_blue_512x512.png
 app_name: "Snapdrop"
 micros:
-  - name: main-static
+  - name: frontend
     primary: true
     engine: static
     src: ./client
+
+  - name: server
+    path: server
+    engine: nodejs16
+    src: ./server
