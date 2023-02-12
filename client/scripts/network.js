@@ -1,94 +1,6 @@
 window.URL = window.URL || window.webkitURL;
 window.isRtcSupported = !!(window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection);
 
-class ServerConnection {
-
-    constructor() {
-        this._connect();
-        Events.on('beforeunload', e => this._disconnect());
-        Events.on('pagehide', e => this._disconnect());
-        document.addEventListener('visibilitychange', e => this._onVisibilityChange());
-    }
-
-    _connect() {
-        clearTimeout(this._reconnectTimer);
-        if (this._isConnected() || this._isConnecting()) return;
-        const ws = new WebSocket(this._endpoint());
-        ws.binaryType = 'arraybuffer';
-        ws.onopen = e => console.log('WS: server connected');
-        ws.onmessage = e => this._onMessage(e.data);
-        ws.onclose = e => this._onDisconnect();
-        ws.onerror = e => console.error(e);
-        this._socket = ws;
-    }
-
-    _onMessage(msg) {
-        msg = JSON.parse(msg);
-        console.log('WS:', msg);
-        switch (msg.type) {
-            case 'peers':
-                Events.fire('peers', msg.peers);
-                break;
-            case 'peer-joined':
-                Events.fire('peer-joined', msg.peer);
-                break;
-            case 'peer-left':
-                Events.fire('peer-left', msg.peerId);
-                break;
-            case 'signal':
-                Events.fire('signal', msg);
-                break;
-            case 'ping':
-                this.send({ type: 'pong' });
-                break;
-            case 'display-name':
-                Events.fire('display-name', msg);
-                break;
-            default:
-                console.error('WS: unkown message type', msg);
-        }
-    }
-
-    send(message) {
-        if (!this._isConnected()) return;
-        this._socket.send(JSON.stringify(message));
-    }
-
-    _endpoint() {
-        // hack to detect if deployment or development environment
-        const protocol = location.protocol.startsWith('https') ? 'wss' : 'ws';
-        const webrtc = window.isRtcSupported ? '/webrtc' : '/fallback';
-        const url = protocol + '://' + location.host + location.pathname + 'server' + webrtc;
-        return url;
-    }
-
-    _disconnect() {
-        this.send({ type: 'disconnect' });
-        this._socket.onclose = null;
-        this._socket.close();
-    }
-
-    _onDisconnect() {
-        console.log('WS: server disconnected');
-        Events.fire('notify-user', 'Connection lost. Retry in 5 seconds...');
-        clearTimeout(this._reconnectTimer);
-        this._reconnectTimer = setTimeout(_ => this._connect(), 5000);
-    }
-
-    _onVisibilityChange() {
-        if (document.hidden) return;
-        this._connect();
-    }
-
-    _isConnected() {
-        return this._socket && this._socket.readyState === this._socket.OPEN;
-    }
-
-    _isConnecting() {
-        return this._socket && this._socket.readyState === this._socket.CONNECTING;
-    }
-}
-
 class Peer {
 
     constructor(serverConnection, peerId) {
@@ -386,8 +298,6 @@ class PeersManager {
             }
             if (window.isRtcSupported && peer.rtcSupported) {
                 this.peers[peer.id] = new RTCPeer(this._server, peer.id);
-            } else {
-                this.peers[peer.id] = new WSPeer(this._server, peer.id);
             }
         })
     }
@@ -411,13 +321,6 @@ class PeersManager {
         peer._peer.close();
     }
 
-}
-
-class WSPeer {
-    _send(message) {
-        message.to = this._peerId;
-        this._server.send(message);
-    }
 }
 
 class FileChunker {
