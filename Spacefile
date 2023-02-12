@@ -1,0 +1,8 @@
+v: 0
+icon: ./client/images/logo_blue_512x512.png
+app_name: "Snapdrop"
+micros:
+  - name: main-static
+    primary: true
+    engine: static
+    src: ./client
