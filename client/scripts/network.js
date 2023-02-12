@@ -432,13 +432,6 @@ class WSPeer {
   }
 }
 
-class WSPeer {
-  _send(message) {
-    message.to = this._peerId
-    this._server.send(message)
-  }
-}
-
 class FileChunker {
   constructor(file, onChunk, onPartitionEnd) {
     this._chunkSize = 64000 // 64 KB
