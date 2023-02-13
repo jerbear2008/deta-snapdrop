@@ -11,7 +11,7 @@ class ServerConnection {
   }
 
   async _register() {
-    const response = await fetch(this._endpoint('/me'), { method: 'PUT' })
+    const response = await fetch(this._endpoint('/me'), { method: 'POST' })
     const { id, name } = await response.json()
     this._peers = []
     Events.fire('display-name', name)
@@ -21,12 +21,10 @@ class ServerConnection {
   }
 
   async _update(initial = false) {
-    const temp = await Promise.all([
+    const peers = (await Promise.all([
       fetch(this._endpoint('/me'), { method: 'POST' }),
       fetch(this._endpoint('/peers'), { method: 'GET' }).then((r) => r.json()),
-    ])
-    console.log(temp)
-    const peers = temp[1]
+    ]))[1]
     if (initial) {
       Events.fire('peers', peers)
     } else {

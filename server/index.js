@@ -9,7 +9,7 @@ const expiration = {
   expireIn: 17,
 }
 
-function getName(request, id) {
+function getName(request) {
   let ua = parser(request.headers['user-agent'])
 
   let deviceName = ''
@@ -59,18 +59,16 @@ const base = Base('users')
 const fastify = Fastify()
 fastify.register(cookie)
 
-const createPeer = async (request, reply) => {
-  const id = request.cookies?.peerid || nanoid()
-  const name = getName(request, id)
-  base.put({ name }, id, expiration)
-  reply.setCookie('peerid', id)
-  return { id, name }
-}
-fastify.put('/me', createPeer)
 
 fastify.post('/me', async (request, reply) => {
-  const id = request.cookies?.peerid
-  if (!(id && await base.get(id))) return createPeer(request, reply)
+  const id = request.cookies.peerid
+  if (!(id && await base.get(id))) {
+    const newId = id || nanoid()
+    const name = getName(request)
+    base.put({ name }, newId, expiration)
+    reply.setCookie('peerid', newId)
+    return { newId, name }
+  }
   await base.update({}, id, expiration)
   return 'success'
 })
@@ -83,7 +81,7 @@ fastify.delete('/me', async (request, reply) => {
 })
 
 fastify.get('/peers', async (request, reply) => {
-  const id = request.cookies?.peerid
+  const id = request.cookies.peerid
   const peers = await getPeers()
   const otherPeers = id ? peers.filter((p) => p.id !== id) : peers
   return otherPeers
