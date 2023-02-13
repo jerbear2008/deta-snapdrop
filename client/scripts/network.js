@@ -11,17 +11,22 @@ class ServerConnection {
   }
 
   async _register() {
-    const response = await fetch(this._endpoint('/peers'), { method: 'POST' })
+    const response = await fetch(this._endpoint('/me'), { method: 'PUT' })
     const { id, name } = await response.json()
     this._peers = []
     Events.fire('display-name', name)
-    await this._fetchPeers(true)
-    this.interval = setInterval(() => this._fetchPeers(), 5000)
+    await this._update(true)
+    this.updateInterval = setInterval(() => this._update(), 5000)
+    Events.on('beforeunload', () => this._onBeforeUnload())
   }
 
-  async _fetchPeers(initial = false) {
-    const response = await fetch(this._endpoint('/peers'), { method: 'GET' })
-    const peers = await response.json()
+  async _update(initial = false) {
+    const temp = await Promise.all([
+      fetch(this._endpoint('/me'), { method: 'POST' }),
+      fetch(this._endpoint('/peers'), { method: 'GET' }).then((r) => r.json()),
+    ])
+    console.log(temp)
+    const peers = temp[1]
     if (initial) {
       Events.fire('peers', peers)
     } else {
@@ -39,6 +44,11 @@ class ServerConnection {
       }
     }
     this.peers = peers
+  }
+
+  _onBeforeUnload() {
+    fetch(this._endpoint('/me'), { method: 'DELETE', keepalive: true })
+    clearInterval(this.updateInterval)
   }
 
   _onMessage(msg) {

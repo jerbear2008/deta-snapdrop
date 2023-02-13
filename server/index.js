@@ -6,7 +6,7 @@ import { Base } from 'deta'
 import { nanoid } from 'nanoid'
 
 const expiration = {
-  expireIn: 120,
+  expireIn: 17,
 }
 
 function getName(request, id) {
@@ -59,37 +59,34 @@ const base = Base('users')
 const fastify = Fastify()
 fastify.register(cookie)
 
-fastify.post('/peers', async (request, reply) => {
+const createPeer = async (request, reply) => {
   const id = request.cookies?.peerid || nanoid()
   const name = getName(request, id)
   base.put({ name }, id, expiration)
   reply.setCookie('peerid', id)
   return { id, name }
+}
+fastify.put('/me', createPeer)
+
+fastify.post('/me', async (request, reply) => {
+  const id = request.cookies?.peerid
+  if (!(id && await base.get(id))) return createPeer(request, reply)
+  await base.update({}, id, expiration)
+  return 'success'
+})
+
+fastify.delete('/me', async (request, reply) => {
+  const id = request.cookies.peerid
+  if (!id) return 'success (not found to delete)'
+  await base.delete(id)
+  return 'success'
 })
 
 fastify.get('/peers', async (request, reply) => {
   const id = request.cookies?.peerid
   const peers = await getPeers()
   const otherPeers = id ? peers.filter((p) => p.id !== id) : peers
-  console.log(
-    JSON.stringify({
-      id,
-      peers,
-      otherPeers,
-      cookie: JSON.stringify(request.cookies),
-    })
-  )
-  console.log(request)
   return otherPeers
-})
-
-fastify.get('/test', async (request, reply) => {
-  return {
-    peers: await getPeers(),
-    cookies: request.coo,
-    typeCookies: typeof request.cookie,
-    id: request.cookie?.peerid,
-  }
 })
 
 await fastify.listen({ port: process.env.PORT })
