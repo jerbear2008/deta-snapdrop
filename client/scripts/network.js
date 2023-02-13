@@ -7,24 +7,38 @@ window.isRtcSupported = !!(
 
 class ServerConnection {
   constructor() {
-    this._connect()
-    Events.on('beforeunload', (e) => this._disconnect())
-    Events.on('pagehide', (e) => this._disconnect())
-    document.addEventListener('visibilitychange', (e) =>
-      this._onVisibilityChange()
-    )
+    this._register()
   }
 
-  _connect() {
-    clearTimeout(this._reconnectTimer)
-    if (this._isConnected() || this._isConnecting()) return
-    const ws = new WebSocket(this._endpoint())
-    ws.binaryType = 'arraybuffer'
-    ws.onopen = (e) => console.log('WS: server connected')
-    ws.onmessage = (e) => this._onMessage(e.data)
-    ws.onclose = (e) => this._onDisconnect()
-    ws.onerror = (e) => console.error(e)
-    this._socket = ws
+  async _register() {
+    const response = await fetch(this._endpoint('/peers'), { method: 'POST' })
+    const { id, name } = await response.json()
+    this._peers = []
+    Events.fire('display-name', name)
+    await this._fetchPeers(true)
+    this.interval = setInterval(() => this._fetchPeers(), 5000)
+  }
+
+  async _fetchPeers(initial = false) {
+    const response = await fetch(this._endpoint('/peers'), { method: 'GET' })
+    const peers = await response.json()
+    if (initial) {
+      Events.fire('peers', peers)
+    } else {
+      const newPeers = peers.filter(
+        (peer) => !this.peers.find((oldPeer) => oldPeer.id === peer.id)
+      )
+      const leftPeers = this.peers.filter(
+        (oldPeer) => !peers.find((peer) => peer.id === oldPeer.id)
+      )
+      for (const newPeer of newPeers) {
+        Events.fire('peer-joined', newPeer)
+      }
+      for (const leftPeer of leftPeers) {
+        Events.fire('peer-left', leftPeer.id)
+      }
+    }
+    this.peers = peers
   }
 
   _onMessage(msg) {
@@ -59,40 +73,9 @@ class ServerConnection {
     this._socket.send(JSON.stringify(message))
   }
 
-  _endpoint() {
-    // hack to detect if deployment or development environment
-    const protocol = location.protocol.startsWith('https') ? 'wss' : 'ws'
-    const webrtc = window.isRtcSupported ? '/webrtc' : '/fallback'
-    const url = `${protocol}://snapdrop.net/server${webrtc}`
-    // const url =
-    //   protocol + '://' + location.host + location.pathname + 'server' + webrtc
+  _endpoint(path = '/') {
+    const url = `${window.location.origin}/server${path}`
     return url
-  }
-
-  _disconnect() {
-    this.send({ type: 'disconnect' })
-    this._socket.onclose = null
-    this._socket.close()
-  }
-
-  _onDisconnect() {
-    console.log('WS: server disconnected')
-    Events.fire('notify-user', 'Connection lost. Retry in 5 seconds...')
-    clearTimeout(this._reconnectTimer)
-    this._reconnectTimer = setTimeout((_) => this._connect(), 5000)
-  }
-
-  _onVisibilityChange() {
-    if (document.hidden) return
-    this._connect()
-  }
-
-  _isConnected() {
-    return this._socket && this._socket.readyState === this._socket.OPEN
-  }
-
-  _isConnecting() {
-    return this._socket && this._socket.readyState === this._socket.CONNECTING
   }
 }
 

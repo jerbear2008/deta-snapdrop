@@ -1,16 +1,14 @@
 {
-  "name": "snapdrop",
-  "version": "1.0.0",
-  "description": "",
+  "name": "snapdrop-server",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
+  "scripts": {},
   "dependencies": {
+    "@fastify/cookie": "^8.3.0",
+    "deta": "^1.1.0",
+    "fastify": "^4.13.0",
+    "nanoid": "^4.0.1",
     "ua-parser-js": "^0.7.24",
-    "unique-names-generator": "^4.3.0",
-    "ws": "^7.4.6"
-  }
+    "unique-names-generator": "^4.3.0"
+  },
+  "type": "module"
 }

@@ -11,3 +11,5 @@ micros:
     path: server
     engine: nodejs16
     src: ./server
+    presets:
+      api_keys: true
