@@ -62,15 +62,16 @@ fastify.register(cookie)
 
 fastify.post('/me', async (request, reply) => {
   const id = request.cookies.peerid
-  if (!(id && await base.get(id))) {
+  const peer = await base.get(id)
+  if (!(id && peer)) {
     const newId = id || nanoid()
     const name = getName(request)
-    base.put({ name }, newId, expiration)
+    await base.put({ name }, newId, expiration)
     reply.setCookie('peerid', newId)
-    return { newId, name }
+    return { id: newId, name }
   }
   await base.update({}, id, expiration)
-  return 'success'
+  return { id, name: peer.name }
 })
 
 fastify.delete('/me', async (request, reply) => {
