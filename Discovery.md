@@ -6,8 +6,6 @@ git: "https://github.com/jerbear2008/deta-snapdrop"
 homepage: "https://snapdrop.net"
 ---
 
-# Snapdrop
-
 Snapdrop: direct file sharing in your browser. Inspired by Apple's Airdrop, now on Deta!
 
 You can now share unlimited files across the Internet to anyone on your instance, not just on your network! Since files are shared over WebRTC, files have no limit and are shared at the top speed of your connections. Also supports mobile and sending plain text.
