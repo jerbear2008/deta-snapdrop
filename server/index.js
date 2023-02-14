@@ -44,7 +44,7 @@ function getName(request) {
 }
 
 async function getPeers() {
-  const response = await base.fetch()
+  const response = await users.fetch()
   if (response.last)
     Events.fire(
       'notify-user',
@@ -55,37 +55,72 @@ async function getPeers() {
   })
 }
 
-const base = Base('users')
-const fastify = Fastify()
+const users = Base('users')
+const signals = Base('signals')
+const fastify = Fastify({
+  logger: true,
+})
 fastify.register(cookie)
 
+fastify.post('/me', updateUser)
 
-fastify.post('/me', async (request, reply) => {
+async function updateUser(request, reply) {
   const id = request.cookies.peerid
-  const peer = await base.get(id)
+  let peer = null
+  try {
+    if (id) peer = await users.get(id)
+  } catch {}
   if (!(id && peer)) {
     const newId = id || nanoid()
     const name = getName(request)
-    await base.put({ name }, newId, expiration)
+    await users.put({ name }, newId, expiration)
     reply.setCookie('peerid', newId)
     return { id: newId, name }
   }
-  await base.update({}, id, expiration)
+  await users.update({}, id, expiration)
   return { id, name: peer.name }
-})
+}
 
 fastify.delete('/me', async (request, reply) => {
   const id = request.cookies.peerid
   if (!id) return 'success (not found to delete)'
-  await base.delete(id)
+  await users.delete(id)
   return 'success'
 })
 
-fastify.get('/peers', async (request, reply) => {
-  const id = request.cookies.peerid
+fastify.get('/update', async (request, reply) => {
+  const { id } = updateUser(request, reply)
+  const peersPromise = getOtherPeers(id)
+  const signalsPromise = getSignals(id)
+  await Promise.all([peersPromise, signalsPromise])
+  return {
+    peers: await peersPromise,
+    signals: await signalsPromise,
+  }
+})
+
+async function getOtherPeers(id) {
   const peers = await getPeers()
   const otherPeers = id ? peers.filter((p) => p.id !== id) : peers
   return otherPeers
+}
+async function getSignals(id) {
+  const { items: matchingSignals } = await signals.fetch({ to: id })
+  for (const { key } of matchingSignals) {
+    await signals.delete(key)
+  }
+  return matchingSignals.map((s) => ({ key: undefined, ...s }))
+}
+
+fastify.post('/signals', async (request, reply) => {
+  const id = request.cookies.peerid
+  if (!id) throw new Error('ID required in cookies for sending signals')
+  const message = request.body
+  if (!(message && typeof message === 'object' && 'to' in message)) {
+    throw new Error('Invalid message object')
+  }
+  await signals.put({ sender: id, ...message }, nanoid(), expiration)
+  return 'success'
 })
 
 await fastify.listen({ port: process.env.PORT })

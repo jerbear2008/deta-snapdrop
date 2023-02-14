@@ -21,10 +21,9 @@ class ServerConnection {
   }
 
   async _update(initial = false) {
-    const peers = (await Promise.all([
-      fetch(this._endpoint('/me'), { method: 'POST' }),
-      fetch(this._endpoint('/peers'), { method: 'GET' }).then((r) => r.json()),
-    ]))[1]
+    const response = await fetch(this._endpoint('/update'), { method: 'GET' })
+    const { peers, signals } = await response.json()
+
     if (initial) {
       Events.fire('peers', peers)
     } else {
@@ -42,6 +41,10 @@ class ServerConnection {
       }
     }
     this.peers = peers
+
+    for (const signal of signals) {
+      Events.fire('signal', signal)
+    }
   }
 
   _onBeforeUnload() {
@@ -76,9 +79,11 @@ class ServerConnection {
     }
   }
 
-  send(message) {
-    if (!this._isConnected()) return
-    this._socket.send(JSON.stringify(message))
+  async send(message) {
+    await fetch(this._endpoint('/signals'), {
+      method: 'POST',
+      body: JSON.stringify(message),
+    })
   }
 
   _endpoint(path = '/') {
