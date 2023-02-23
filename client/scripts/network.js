@@ -52,36 +52,12 @@ class ServerConnection {
     clearInterval(this.updateInterval)
   }
 
-  _onMessage(msg) {
-    msg = JSON.parse(msg)
-    console.log('WS:', msg)
-    switch (msg.type) {
-      case 'peers':
-        Events.fire('peers', msg.peers)
-        break
-      case 'peer-joined':
-        Events.fire('peer-joined', msg.peer)
-        break
-      case 'peer-left':
-        Events.fire('peer-left', msg.peerId)
-        break
-      case 'signal':
-        Events.fire('signal', msg)
-        break
-      case 'ping':
-        this.send({ type: 'pong' })
-        break
-      case 'display-name':
-        Events.fire('display-name', msg)
-        break
-      default:
-        console.error('WS: unkown message type', msg)
-    }
-  }
-
   async send(message) {
     await fetch(this._endpoint('/signals'), {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(message),
     })
   }
@@ -382,6 +358,7 @@ class PeersManager {
   }
 
   _onMessage(message) {
+    console.log('got message', message)
     if (!this.peers[message.sender]) {
       this.peers[message.sender] = new RTCPeer(this._server)
     }
@@ -394,11 +371,7 @@ class PeersManager {
         this.peers[peer.id].refresh()
         return
       }
-      if (window.isRtcSupported && peer.rtcSupported) {
-        this.peers[peer.id] = new RTCPeer(this._server, peer.id)
-      } else {
-        this.peers[peer.id] = new WSPeer(this._server, peer.id)
-      }
+      this.peers[peer.id] = new RTCPeer(this._server, peer.id)
     })
   }
 

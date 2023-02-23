@@ -58,7 +58,7 @@ async function getPeers() {
 const users = Base('users')
 const signals = Base('signals')
 const fastify = Fastify({
-  logger: true,
+  logger: { level: 'warn' },
 })
 fastify.register(cookie)
 
@@ -117,7 +117,7 @@ fastify.post('/signals', async (request, reply) => {
   if (!id) throw new Error('ID required in cookies for sending signals')
   const message = request.body
   if (!(message && typeof message === 'object' && 'to' in message)) {
-    throw new Error('Invalid message object')
+    throw new Error('Invalid message object: ' + JSON.stringify(message))
   }
   await signals.put({ sender: id, ...message }, nanoid(), expiration)
   return 'success'
