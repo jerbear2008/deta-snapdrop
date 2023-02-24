@@ -7,14 +7,12 @@ window.isRtcSupported = !!(
 
 class ServerConnection {
   constructor() {
-    this._register()
+    this.register()
   }
 
-  async _register() {
-    const response = await fetch(this._endpoint('/me'), { method: 'POST' })
-    const { id, name } = await response.json()
-    this._peers = []
-    Events.fire('display-name', name)
+  async register() {
+    this.peers = []
+    this.name = ''
     await this._update(true)
     this.updateInterval = setInterval(() => this._update(), 5000)
     Events.on('beforeunload', () => this._onBeforeUnload())
@@ -22,66 +20,46 @@ class ServerConnection {
 
   async _update(initial = false) {
     const response = await fetch(this._endpoint('/update'), { method: 'GET' })
-    const { peers, signals } = await response.json()
+    const { id, name, peers, signals } = await response.json()
 
-    if (initial) {
-      Events.fire('peers', peers)
-    } else {
-      const newPeers = peers.filter(
-        (peer) => !this.peers.find((oldPeer) => oldPeer.id === peer.id)
-      )
-      const leftPeers = this.peers.filter(
-        (oldPeer) => !peers.find((peer) => peer.id === oldPeer.id)
-      )
-      for (const newPeer of newPeers) {
-        Events.fire('peer-joined', newPeer)
-      }
-      for (const leftPeer of leftPeers) {
-        Events.fire('peer-left', leftPeer.id)
-      }
+    this.id = id
+    if (name !== this.name && initial) {
+      this.name = name
+      Events.fire('display-name', name)
+    }
+
+    const newPeers = peers.filter(
+      (peer) => !this.peers.find((oldPeer) => oldPeer.id === peer.id)
+    )
+    const leftPeers = this.peers.filter(
+      (oldPeer) => !peers.find((peer) => peer.id === oldPeer.id)
+    )
+    for (const newPeer of newPeers) {
+      Events.fire('peer-joined', newPeer)
+    }
+    for (const leftPeer of leftPeers) {
+      Events.fire('peer-left', leftPeer.id)
     }
     this.peers = peers
 
     for (const signal of signals) {
+      console.log('got signal', signal)
       Events.fire('signal', signal)
     }
   }
 
   _onBeforeUnload() {
-    fetch(this._endpoint('/me'), { method: 'DELETE', keepalive: true })
+    fetch(this._endpoint('/update'), { method: 'DELETE', keepalive: true })
     clearInterval(this.updateInterval)
   }
 
-  _onMessage(msg) {
-    msg = JSON.parse(msg)
-    console.log('WS:', msg)
-    switch (msg.type) {
-      case 'peers':
-        Events.fire('peers', msg.peers)
-        break
-      case 'peer-joined':
-        Events.fire('peer-joined', msg.peer)
-        break
-      case 'peer-left':
-        Events.fire('peer-left', msg.peerId)
-        break
-      case 'signal':
-        Events.fire('signal', msg)
-        break
-      case 'ping':
-        this.send({ type: 'pong' })
-        break
-      case 'display-name':
-        Events.fire('display-name', msg)
-        break
-      default:
-        console.error('WS: unkown message type', msg)
-    }
-  }
-
   async send(message) {
+    console.log('sending', message)
     await fetch(this._endpoint('/signals'), {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(message),
     })
   }
@@ -237,7 +215,19 @@ class RTCPeer extends Peer {
   constructor(serverConnection, peerId) {
     super(serverConnection, peerId)
     if (!peerId) return // we will listen for a caller
-    this._connect(peerId, true)
+    ;(async () => {
+      this._connect(peerId, await this._determineCaller())
+    })()
+  }
+
+  async _determineCaller() {
+    const sorted = [this._server.id, this._peerId].sort()
+    const rawSorted = new TextEncoder().encode(sorted.join(''))
+    const hashBuffer = await crypto.subtle.digest('SHA-256', rawSorted)
+    const dataView = new DataView(hashBuffer)
+    const leastSignificantBit = dataView.getUint8(0) & 0b00000001
+    const responsibleId = sorted[leastSignificantBit]
+    return responsibleId === this._server.id
   }
 
   _connect(peerId, isCaller) {
@@ -286,6 +276,7 @@ class RTCPeer extends Peer {
   }
 
   onServerMessage(message) {
+    console.log(this, 'got message in peer', message)
     if (!this._conn) this._connect(message.sender, false)
 
     if (message.sdp) {
@@ -303,7 +294,7 @@ class RTCPeer extends Peer {
   }
 
   _onChannelOpened(event) {
-    console.log('RTC: channel opened with', this._peerId)
+    console.log(this, 'RTC: channel opened with', this._peerId)
     const channel = event.channel || event.target
     channel.binaryType = 'arraybuffer'
     channel.onmessage = (e) => this._onMessage(e.data)
@@ -376,6 +367,7 @@ class PeersManager {
     this._server = serverConnection
     Events.on('signal', (e) => this._onMessage(e.detail))
     Events.on('peers', (e) => this._onPeers(e.detail))
+    Events.on('peer-joined', (e) => this._onPeer(e.detail))
     Events.on('files-selected', (e) => this._onFilesSelected(e.detail))
     Events.on('send-text', (e) => this._onSendText(e.detail))
     Events.on('peer-left', (e) => this._onPeerLeft(e.detail))
@@ -389,17 +381,14 @@ class PeersManager {
   }
 
   _onPeers(peers) {
-    peers.forEach((peer) => {
-      if (this.peers[peer.id]) {
-        this.peers[peer.id].refresh()
-        return
-      }
-      if (window.isRtcSupported && peer.rtcSupported) {
-        this.peers[peer.id] = new RTCPeer(this._server, peer.id)
-      } else {
-        this.peers[peer.id] = new WSPeer(this._server, peer.id)
-      }
-    })
+    peers.forEach(this._onPeer)
+  }
+  _onPeer(peer) {
+    if (this.peers[peer.id]) {
+      this.peers[peer.id].refresh()
+      return
+    }
+    this.peers[peer.id] = new RTCPeer(this._server, peer.id)
   }
 
   sendTo(peerId, message) {
@@ -419,13 +408,6 @@ class PeersManager {
     delete this.peers[peerId]
     if (!peer || !peer._peer) return
     peer._peer.close()
-  }
-}
-
-class WSPeer {
-  _send(message) {
-    message.to = this._peerId
-    this._server.send(message)
   }
 }
 
