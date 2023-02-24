@@ -1,6 +1,6 @@
 ---
 title: "Snapdrop: Direct file sharing in your browser"
-tagline: "Unlimited and unthrottled file sharing"
+tagline: "Unlimited and unthrottled direct file sharing"
 theme_color: "#3367d6"
 git: "https://github.com/jerbear2008/deta-snapdrop"
 homepage: "https://snapdrop.net"

@@ -140,6 +140,14 @@ a {
   fill: currentColor;
 }
 
+.icon-lines {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 30px;
+}
+
 /* Shadows */
 
 [shadow='1'] {

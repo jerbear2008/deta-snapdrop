@@ -1,5 +1,7 @@
 # Frequently Asked Questions
 
+This is from the upstream Snapdrop repository, not updated for Deta Space. For help, go to the [`#snapdrop` channel on the Deta Discord server](https://discord.gg/deta-827546555200438332)!
+
 ### Instructions / Discussions
 
 - [Video Instructions](https://www.youtube.com/watch?v=4XN02GkcHUM) (Big thanks to [TheiTeckHq](https://www.youtube.com/channel/UC_DUzWMb8gZZnAbISQjmAfQ))
