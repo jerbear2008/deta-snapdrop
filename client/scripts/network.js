@@ -374,6 +374,7 @@ class PeersManager {
   }
 
   _onMessage(message) {
+    console.log('got message', message)
     if (!this.peers[message.sender]) {
       this.peers[message.sender] = new RTCPeer(this._server)
     }
