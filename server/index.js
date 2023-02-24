@@ -38,15 +38,6 @@ function getName(request, id) {
     seed: idNumber,
   })
 
-  console.log('in gennames, made a name', displayName, {
-    model: ua.device.model,
-    os: ua.os.name,
-    browser: ua.browser.name,
-    type: ua.device.type,
-    deviceName,
-    displayName,
-  })
-
   return {
     model: ua.device.model,
     os: ua.os.name,
@@ -85,7 +76,6 @@ async function updateUser(request, reply) {
   if (!(id && peer)) {
     const newId = id || nanoid()
     const name = getName(request, id)
-    console.log('new name generated', name)
     await users.put({ name }, newId, expiration)
     reply.setCookie('peerid', newId)
     return { id: newId, name }
@@ -105,12 +95,6 @@ fastify.get('/update', async (request, reply) => {
   const { id, name } = await updateUser(request, reply)
   const peersPromise = getOtherPeers(id)
   const signalsPromise = getSignals(id)
-  console.log('these are not the errors you are looking for', {
-    id,
-    name,
-    peers: await peersPromise,
-    signals: await signalsPromise,
-  })
   return {
     id,
     name,

@@ -43,7 +43,6 @@ class ServerConnection {
     this.peers = peers
 
     for (const signal of signals) {
-      console.log('got signal', signal)
       Events.fire('signal', signal)
     }
   }
@@ -54,7 +53,6 @@ class ServerConnection {
   }
 
   async send(message) {
-    console.log('sending', message)
     await fetch(this._endpoint('/signals'), {
       method: 'POST',
       headers: {
@@ -135,7 +133,6 @@ class Peer {
       return
     }
     message = JSON.parse(message)
-    console.log('RTC:', message)
     switch (message.type) {
       case 'header':
         this._onFileHeader(message)
@@ -276,7 +273,6 @@ class RTCPeer extends Peer {
   }
 
   onServerMessage(message) {
-    console.log(this, 'got message in peer', message)
     if (!this._conn) this._connect(message.sender, false)
 
     if (message.sdp) {
@@ -294,7 +290,6 @@ class RTCPeer extends Peer {
   }
 
   _onChannelOpened(event) {
-    console.log(this, 'RTC: channel opened with', this._peerId)
     const channel = event.channel || event.target
     channel.binaryType = 'arraybuffer'
     channel.onmessage = (e) => this._onMessage(e.data)
@@ -303,13 +298,11 @@ class RTCPeer extends Peer {
   }
 
   _onChannelClosed() {
-    console.log('RTC: channel closed', this._peerId)
     if (!this.isCaller) return
     this._connect(this._peerId, true) // reopen the channel
   }
 
   _onConnectionStateChange(e) {
-    console.log('RTC: state changed:', this._conn.connectionState)
     switch (this._conn.connectionState) {
       case 'disconnected':
         this._onChannelClosed()
@@ -327,7 +320,7 @@ class RTCPeer extends Peer {
         console.error('ICE Gathering failed')
         break
       default:
-        console.log('ICE Gathering', this._conn.iceConnectionState)
+        break
     }
   }
 
@@ -374,7 +367,6 @@ class PeersManager {
   }
 
   _onMessage(message) {
-    console.log('got message', message)
     if (!this.peers[message.sender]) {
       this.peers[message.sender] = new RTCPeer(this._server)
     }
