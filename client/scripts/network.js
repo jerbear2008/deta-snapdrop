@@ -12,7 +12,7 @@ class ServerConnection {
 
   async register() {
     this.peers = []
-    this.name = ''
+    this.name = {}
     await this._update(true)
     this.updateInterval = setInterval(() => this._update(), 5000)
     Events.on('beforeunload', () => this._onBeforeUnload())
@@ -23,7 +23,7 @@ class ServerConnection {
     const { id, name, peers, signals } = await response.json()
 
     this.id = id
-    if (name !== this.name && initial) {
+    if (name.displayName !== this.name.displayName && initial) {
       this.name = name
       Events.fire('display-name', name)
     }
@@ -506,7 +506,13 @@ RTCPeer.config = {
   sdpSemantics: 'unified-plan',
   iceServers: [
     {
-      urls: 'stun:stun.l.google.com:19302',
+      urls: [
+        'stun:stun.l.google.com:19302',
+        'stun:stun.stunprotocol.org:3478',
+        'stun:stun.ooma.com:3478',
+      ],
     },
   ],
 }
+
+console.log(':D')

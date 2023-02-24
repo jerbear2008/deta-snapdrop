@@ -272,7 +272,6 @@ class ReceiveDialog extends Dialog {
       return
     }
     if (file.mime.split('/')[0] === 'image') {
-      console.log('the file is image')
       this.$el.querySelector('.preview').style.visibility = 'inherit'
       this.$el.querySelector('#img-preview').src = url
     }
@@ -525,7 +524,7 @@ class WebShareTargetUI {
     if (!shareTargetText) return
     window.shareTargetText = shareTargetText
     history.pushState({}, 'URL Rewrite', '/')
-    console.log('Shared Target Text:', '"' + shareTargetText + '"')
+    // console.log('Shared Target Text:', '"' + shareTargetText + '"')
   }
 }
 

@@ -75,7 +75,7 @@ async function updateUser(request, reply) {
   } catch {}
   if (!(id && peer)) {
     const newId = id || nanoid()
-    const name = getName(request, id)
+    const name = getName(request, newId)
     await users.put({ name }, newId, expiration)
     reply.setCookie('peerid', newId)
     return { id: newId, name }
